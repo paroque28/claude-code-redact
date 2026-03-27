@@ -1,0 +1,37 @@
+Edge case scenarios for redaction:
+
+1. Secret at the very start of the file:
+AKIAIOSFODNN7EXAMPLE is exposed here
+
+2. Secret at the very end of the file with no newline:
+The key is AKIAIOSFODNN7EXAMPLE2
+
+3. Multiple secrets on the same line:
+Keys: AKIAI44QH8DHBEXAMPLE and ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklm
+
+4. Secret spanning what looks like a word boundary:
+email:pablo@acmecorp.com password:"SecretP4ss!"
+
+5. Overlapping patterns:
+aws_secret_access_key = "AKIAIOSFODNN7EXAMPLE/with/extra"
+
+6. Secret inside JSON:
+{"api_key": "sk-proj-abcdefghijklmnopqrstuvwxyz0123456789abcdef", "name": "test"}
+
+7. Secret inside URL:
+https://user:SuperSecretP4ss@api.acmecorp.internal:8443/webhook?token=ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijk
+
+8. Empty string that matches a context pattern:
+password = ""
+
+9. Unicode in surrounding text:
+La contraseña es "MiContraseñaSegura123" para el usuario pablo@acmecorp.com
+
+10. Extremely long line with secret buried in the middle:
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. The key AKIAIOSFODNN7EXAMPLE3 was found in the configuration. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat.
+
+11. Secret with surrounding whitespace:
+   AKIAIOSFODNN7EXAMPLE4
+
+12. Repeated same secret:
+Key1: AKIAIOSFODNN7EXAMPLE Key2: AKIAIOSFODNN7EXAMPLE Key3: AKIAIOSFODNN7EXAMPLE

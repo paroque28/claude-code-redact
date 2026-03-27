@@ -57,7 +57,7 @@ def get_builtin_rules() -> list[Rule]:
         ),
         Rule(
             id="openai-key",
-            pattern=r"sk-[a-zA-Z0-9]{32,}",
+            pattern=r"sk-(?!ant-)[a-zA-Z0-9\-_]{32,}",
             category="KEY",
             description="OpenAI API Key",
         ),
