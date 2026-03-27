@@ -166,16 +166,28 @@ class TestFakeConfig:
 # ============================================================
 
 class TestFakeEnv:
-    def test_db_password_not_caught_by_builtin_patterns(self, redactor: Redactor) -> None:
-        """DB_PASSWORD in .env is NOT caught by builtin patterns because the
-        generic-secret-assignment regex expects 'password' at the start of the match,
-        not 'DB_PASSWORD'. This is where context detection fills the gap."""
+    def test_db_password_caught_with_context_detection(self, redactor: Redactor) -> None:
+        """DB_PASSWORD in .env IS caught now that context detection is wired
+        into the Redactor pipeline.  Previously builtin patterns alone missed
+        it because the generic-secret-assignment regex expects 'password' at
+        the start of the match, not 'DB_PASSWORD'."""
         text = load_fixture("fake_env")
         result = redactor.redact(text)
         assert result.redacted_text is not None
-        # Builtin patterns alone don't catch DB_PASSWORD="..." format
-        # Context detection (scan_context) DOES catch it — tested separately
-        assert "Tr0ub4dor&3horse" in result.redacted_text  # NOT caught by builtins
+        # Context detection (now integrated) catches DB_PASSWORD="..." format
+        assert "Tr0ub4dor&3horse" not in result.redacted_text  # caught by context detection
+
+    def test_db_password_not_caught_without_context(self) -> None:
+        """Without context detection, builtin patterns alone miss DB_PASSWORD."""
+        cache = MappingCache()
+        redactor = Redactor(
+            ALL_RULES, cache,
+            use_context=False, use_entropy=False,
+        )
+        text = load_fixture("fake_env")
+        result = redactor.redact(text)
+        assert result.redacted_text is not None
+        assert "Tr0ub4dor&3horse" in result.redacted_text  # NOT caught by builtins alone
 
     def test_db_password_caught_by_context_detection(self) -> None:
         """Context detection catches DB_PASSWORD that builtin patterns miss."""

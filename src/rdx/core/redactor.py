@@ -7,14 +7,29 @@ from .models import Match, ScanResult
 from .scanner import Scanner
 from .models import Rule
 
+from rdx.detect.context import scan_context
+from rdx.detect.entropy import scan_entropy
+from rdx.detect.presidio import scan_presidio
+
 
 class Redactor:
     """Applies redactions to text, building the mapping cache."""
 
-    def __init__(self, rules: list[Rule], cache: MappingCache) -> None:
+    def __init__(
+        self,
+        rules: list[Rule],
+        cache: MappingCache,
+        *,
+        use_entropy: bool = True,
+        use_context: bool = True,
+        use_presidio: bool = False,
+    ) -> None:
         self.scanner = Scanner(rules)
         self.cache = cache
         self.rules = rules
+        self.use_entropy = use_entropy
+        self.use_context = use_context
+        self.use_presidio = use_presidio
 
     def redact(
         self,
@@ -24,6 +39,13 @@ class Redactor:
     ) -> ScanResult:
         """Scan *text* and apply redactions / blocks / warns."""
         matches = self.scanner.scan(text, target, tool_name)
+
+        if self.use_context:
+            matches.extend(scan_context(text))
+        if self.use_entropy:
+            matches.extend(scan_entropy(text))
+        if self.use_presidio:
+            matches.extend(scan_presidio(text))
 
         if not matches:
             return ScanResult(matches=[], redacted_text=text)
