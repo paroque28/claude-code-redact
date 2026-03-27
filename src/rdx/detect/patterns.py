@@ -70,13 +70,13 @@ def get_builtin_rules() -> list[Rule]:
         ),
         Rule(
             id="stripe-key",
-            pattern=r"sk_live_[a-zA-Z0-9]{24,}",
+            pattern=r"sk_live_[a-zA-Z0-9]{20,}",
             category="KEY",
             description="Stripe Secret Key",
         ),
         Rule(
             id="stripe-restricted",
-            pattern=r"rk_live_[a-zA-Z0-9]{24,}",
+            pattern=r"rk_live_[a-zA-Z0-9]{20,}",
             category="KEY",
             description="Stripe Restricted Key",
         ),

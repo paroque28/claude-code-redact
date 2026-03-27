@@ -85,14 +85,14 @@ rules:
     description: AcmeCorp short-form token
 
   # Company-prefixed identifiers (tickets, projects, repos)
+  # Ticket IDs — no format-preserving replacement (each ticket is unique,
+  # a fixed replacement would cause collisions). Use auto-tokens instead.
   - id: acme-ticket
     pattern: 'ACME-\d{3,}'
-    replacement: 'WIDG-0000'
     category: PROJECT
     description: AcmeCorp ticket/issue IDs
 
   - id: phoenix-ticket
     pattern: 'PHOENIX-\d{3,}'
-    replacement: 'EAGLE-0000'
     category: PROJECT
     description: ProjectPhoenix ticket IDs

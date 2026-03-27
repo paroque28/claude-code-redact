@@ -49,9 +49,22 @@ class Redactor:
                 warn_reasons=warn_reasons,
             )
 
+        # Deduplicate overlapping matches: keep the longest span when two
+        # matches overlap.  Sort by (start, -length) so the longest match
+        # at each position comes first, then sweep left-to-right and skip
+        # any match whose span is fully contained in an already-accepted one.
+        redact_matches.sort(key=lambda m: (m.start, -(m.end - m.start)))
+        deduped: list[Match] = []
+        last_end = -1
+        for match in redact_matches:
+            if match.start >= last_end:
+                deduped.append(match)
+                last_end = match.end
+            # else: this match overlaps with a longer one — skip it
+
         # Apply redactions in reverse position order to preserve offsets.
         result = text
-        for match in sorted(redact_matches, key=lambda m: m.start, reverse=True):
+        for match in reversed(deduped):
             replacement = self.cache.get_or_create(
                 match.rule.id,
                 match.text,
