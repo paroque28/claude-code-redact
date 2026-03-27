@@ -206,7 +206,11 @@ rules:
 
 ## Status
 
-Core engine, proxy server, and hooks mode are implemented with 264 tests passing. CLI, audit log, and RDX.md generation are in development.
+Core engine, proxy server, hooks mode, CLI, audit log, RDX.md generation, init wizard, and discover command are implemented with 466 tests passing.
+
+## Acknowledgments
+
+This project was inspired by and based on [claude-code-redaction-hooks](https://github.com/l-mb/claude-code-redaction-hooks) by Lars Marowsky-Bree — a Claude Code hook-based approach to secret redaction that identified the core limitations in the hook API (PostToolUse can't modify output, UserPromptSubmit can't modify prompts). `claude-code-redact` extends that work with an API proxy architecture for complete coverage, format-preserving replacements, multi-layer detection (including Microsoft Presidio NLP), and round-trip un-redaction.
 
 ## License
 
