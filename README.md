@@ -110,6 +110,90 @@ rdx audit --stats              # Summary by rule/direction
 rdx audit --show-values        # Show original ↔ redacted pairs
 ```
 
+## Configuration
+
+### `.redaction_rules` format
+
+Place a `.redaction_rules` file in your project root (and optionally at `~/.claude/.redaction_rules` for global rules):
+
+```yaml
+rules:
+  # Format-preserving: Claude sees "Peter Smith" instead of the real name
+  - id: developer-name
+    pattern: 'Marco Vitale'
+    replacement: 'Peter Smith'
+    category: NAME
+    description: Lead developer name
+
+  # Company name
+  - id: company
+    pattern: 'AcmeCorp'
+    replacement: 'WidgetInc'
+    category: PROJECT
+    is_regex: false                 # Literal match, no regex
+
+  # Internal domains
+  - id: internal-domain
+    pattern: 'acmecorp\.internal'   # Regex (escape the dot)
+    replacement: 'widgetinc.test'
+    category: HOST
+
+  # Auto-token: no replacement specified → generates __RDX_KEY_<hash>__
+  - id: custom-api-token
+    pattern: 'acmetk-[a-zA-Z0-9\-]{20,}'
+    category: KEY
+    description: AcmeCorp API tokens
+
+  # Company-prefixed tokens (acme-deploy-..., acme-session-..., etc.)
+  - id: acme-keys
+    pattern: 'acme-[a-z]+-[a-zA-Z0-9]{16,}'
+    category: KEY
+
+  # Ticket IDs (use auto-token to avoid collisions between different tickets)
+  - id: project-tickets
+    pattern: 'PHOENIX-\d{3,}'
+    category: PROJECT
+
+  # Hashed secret: detect without storing plaintext in the rules file
+  - id: secret-project-name
+    hashed: true
+    pattern: 'sha256-hash-of-the-secret-here'
+    hash_extractor: '\b[A-Z][a-zA-Z]+\b'
+    category: PROJECT
+
+  # Tool-specific: only applies to Bash commands
+  - id: block-no-verify
+    pattern: '--no-verify'
+    action: block
+    tool: Bash
+    description: Prevent bypassing git hooks
+```
+
+### Rule fields
+
+| Field | Required | Default | Description |
+|-------|----------|---------|-------------|
+| `id` | Yes | — | Unique identifier |
+| `pattern` | Yes* | — | Regex or literal string to match |
+| `replacement` | No | auto-token | Format-preserving value, or omit for `__RDX_*__` |
+| `category` | No | `CUSTOM` | `NAME`, `EMAIL`, `KEY`, `IP`, `HOST`, `PROJECT`, `PATH`, `CUSTOM` |
+| `action` | No | `redact` | `redact`, `block`, or `warn` |
+| `is_regex` | No | `true` | Set `false` for literal string matching |
+| `target` | No | `both` | `llm`, `tool`, or `both` |
+| `tool` | No | all | Restrict to a specific tool (`Bash`, `Read`, etc.) |
+| `description` | No | — | Human-readable description |
+| `hashed` | No | `false` | Match by SHA-256 hash (don't store plaintext) |
+| `hash_extractor` | No | — | Regex to extract candidates for hash comparison |
+| `path_pattern` | No | — | File path glob (e.g., `*.env`, `**/secrets/*`) |
+
+### Environment variables
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `RDX_UPSTREAM_URL` | `https://api.anthropic.com` | Upstream API for proxy mode |
+| `RDX_PORT` | `8642` | Proxy listen port |
+| `ANTHROPIC_BASE_URL` | — | Set to `http://localhost:8642` when using proxy mode |
+
 ## Security Model
 
 - **No mapping file on disk.** The reverse map (token → original) exists only in proxy process memory. Nothing to steal.
@@ -122,7 +206,7 @@ rdx audit --show-values        # Show original ↔ redacted pairs
 
 ## Status
 
-Phase 1 (core engine) is complete with 149 tests. Proxy mode, hooks mode, CLI, and audit are in development.
+Core engine, proxy server, and hooks mode are implemented with 264 tests passing. CLI, audit log, and RDX.md generation are in development.
 
 ## License
 
