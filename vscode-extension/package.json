@@ -1,0 +1,71 @@
+{
+  "name": "rdx-redaction-viewer",
+  "displayName": "RDX Redaction Viewer",
+  "description": "See what Claude sees — shows redacted values inline, highlights secrets, and provides Claude's view of your code",
+  "version": "0.1.0",
+  "publisher": "claude-code-redact",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/paroque28/claude-code-redact"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": ["Other"],
+  "activationEvents": [
+    "workspaceContains:.redaction_rules"
+  ],
+  "main": "./out/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "rdx.toggleClaudeView",
+        "title": "RDX: Toggle Claude's View"
+      },
+      {
+        "command": "rdx.scanFile",
+        "title": "RDX: Scan Current File for Secrets"
+      },
+      {
+        "command": "rdx.refresh",
+        "title": "RDX: Refresh Redaction Decorations"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "rdx.toggleClaudeView",
+        "key": "ctrl+shift+r",
+        "mac": "cmd+shift+r"
+      }
+    ],
+    "configuration": {
+      "title": "RDX Redaction Viewer",
+      "properties": {
+        "rdx.rdxPath": {
+          "type": "string",
+          "default": "rdx",
+          "description": "Path to the rdx CLI binary"
+        },
+        "rdx.autoScan": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically scan files on open/save"
+        },
+        "rdx.showInlineReplacements": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show what Claude sees as inline decorations"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.3.0"
+  }
+}

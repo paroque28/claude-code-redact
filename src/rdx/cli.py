@@ -133,6 +133,18 @@ def cmd_proxy_status(args: argparse.Namespace) -> int:
     return 0
 
 
+# ── init ───────────────────────────────────────────────────────────
+
+
+def cmd_init(args: argparse.Namespace) -> int:
+    """Run the interactive init wizard."""
+    from rdx.init import run_init
+    return run_init(
+        project_dir=_project_dir(),
+        non_interactive=args.non_interactive,
+    )
+
+
 # ── setup ──────────────────────────────────────────────────────────
 
 
@@ -331,20 +343,47 @@ def cmd_secret_list(args: argparse.Namespace) -> int:
 # ── check ──────────────────────────────────────────────────────────
 
 
+def _line_col(text: str, offset: int) -> tuple[int, int]:
+    """Convert character offset to (line, col) — both 0-based."""
+    line = text.count("\n", 0, offset)
+    last_nl = text.rfind("\n", 0, offset)
+    col = offset if last_nl == -1 else offset - last_nl - 1
+    return line, col
+
+
 def cmd_check(args: argparse.Namespace) -> int:
     """Scan files or stdin for secrets."""
     rules = _build_rules()
     cache = MappingCache()
     redactor = Redactor(rules, cache)
     found = 0
+    use_json = getattr(args, "json", False)
+    json_matches: list[dict] = []
+
+    def _scan(text: str, source: str) -> None:
+        nonlocal found
+        result = redactor.redact(text, target="both")
+        if not result.matches:
+            return
+        found += len(result.matches)
+        for m in result.matches:
+            line, col = _line_col(text, m.start)
+            if use_json:
+                replacement = cache.get_or_create(
+                    m.rule.id, m.text, m.rule.category, m.rule.replacement
+                )
+                json_matches.append({
+                    "file": source, "line": line, "col": col,
+                    "start": m.start, "end": m.end,
+                    "original": m.text, "replacement": replacement,
+                    "rule_id": m.rule.id, "category": m.rule.category,
+                    "description": m.rule.description, "action": m.rule.action,
+                })
+            elif not args.quiet:
+                print(f"  {source}:{line + 1}: [{m.rule.id}] {m.rule.description}")
 
     if args.stdin:
-        text = sys.stdin.read()
-        result = redactor.redact(text, target="both")
-        if result.matches:
-            found += len(result.matches)
-            for m in result.matches:
-                print(f"  stdin:{m.start}: [{m.rule.id}] {m.rule.description}")
+        _scan(sys.stdin.read(), "stdin")
     else:
         for file_path in args.files:
             p = Path(file_path)
@@ -356,11 +395,12 @@ def cmd_check(args: argparse.Namespace) -> int:
             except (OSError, UnicodeDecodeError) as e:
                 print(f"  {file_path}: {e}", file=sys.stderr)
                 continue
-            result = redactor.redact(text, target="both")
-            if result.matches:
-                found += len(result.matches)
-                for m in result.matches:
-                    print(f"  {file_path}:{m.start}: [{m.rule.id}] {m.rule.description}")
+            _scan(text, file_path)
+
+    if use_json:
+        json.dump({"matches": json_matches, "total": found}, sys.stdout, indent=2)
+        print()
+        return 1 if found else 0
 
     if found:
         print(f"\n{found} issue(s) found.")
@@ -476,6 +516,11 @@ def build_parser() -> argparse.ArgumentParser:
     status_p = proxy_sub.add_parser("status", help="Show proxy status")
     status_p.set_defaults(func=cmd_proxy_status)
 
+    # init
+    init_p = subparsers.add_parser("init", help="Interactive setup wizard")
+    init_p.add_argument("--non-interactive", action="store_true", help="Read JSON config from stdin")
+    init_p.set_defaults(func=cmd_init)
+
     # setup
     setup_p = subparsers.add_parser("setup", help="Configure Claude Code integration")
     setup_p.add_argument("--proxy", action="store_true", help="Set up proxy mode")
@@ -530,6 +575,7 @@ def build_parser() -> argparse.ArgumentParser:
     check_p.add_argument("files", nargs="*", help="Files to scan")
     check_p.add_argument("--stdin", action="store_true", help="Read from stdin")
     check_p.add_argument("-q", "--quiet", action="store_true", help="Quiet mode")
+    check_p.add_argument("--json", action="store_true", help="JSON output for tooling")
     check_p.set_defaults(func=cmd_check)
 
     # audit
@@ -554,7 +600,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
 
     # Catch-all: if first arg is not a known subcommand, treat as command to run
-    known = {"proxy", "setup", "hook", "rewrite", "rules", "secret", "check", "audit", "shadow"}
+    known = {"proxy", "setup", "init", "hook", "rewrite", "rules", "secret", "check", "audit", "shadow"}
     if argv is None:
         argv = sys.argv[1:]
 
