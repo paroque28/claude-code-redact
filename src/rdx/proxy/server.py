@@ -3,7 +3,9 @@
 from __future__ import annotations
 
 import json
+import logging
 import os
+import sys
 
 import httpx
 from starlette.applications import Starlette
@@ -20,6 +22,8 @@ from rdx.detect.patterns import get_builtin_rules
 from .handler import redact_request_body, unredact_response_body
 from .stream import unredact_stream
 
+logger = logging.getLogger(__name__)
+
 # Headers to forward from client to upstream.
 _FORWARD_HEADERS = frozenset({
     "authorization",
@@ -29,10 +33,19 @@ _FORWARD_HEADERS = frozenset({
 })
 
 DEFAULT_UPSTREAM = "https://api.anthropic.com"
+DEFAULT_TIMEOUT = 300.0
 
 
 def _get_upstream_url() -> str:
     return os.environ.get("RDX_UPSTREAM_URL", DEFAULT_UPSTREAM)
+
+
+def _get_timeout() -> float:
+    """Get timeout from RDX_TIMEOUT env var (seconds), default 300."""
+    try:
+        return float(os.environ.get("RDX_TIMEOUT", str(DEFAULT_TIMEOUT)))
+    except (ValueError, TypeError):
+        return DEFAULT_TIMEOUT
 
 
 def _build_rules() -> list:
@@ -62,9 +75,15 @@ async def proxy_messages(request: Request) -> StreamingResponse | JSONResponse:
     rules = _build_rules()
     redactor = Redactor(rules, _cache)
     unredactor = Unredactor(_cache)
+    timeout = _get_timeout()
 
     body = await request.json()
-    redacted_body = redact_request_body(body, redactor)
+
+    try:
+        redacted_body = redact_request_body(body, redactor)
+    except Exception:
+        logger.exception("Redaction failed on request body — passing through unredacted")
+        redacted_body = body
 
     is_streaming = redacted_body.get("stream", False)
 
@@ -77,7 +96,7 @@ async def proxy_messages(request: Request) -> StreamingResponse | JSONResponse:
 
     upstream_url = _get_upstream_url() + "/v1/messages"
 
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=timeout) as client:
         if is_streaming:
             upstream_resp = await client.send(
                 client.build_request(
@@ -91,8 +110,12 @@ async def proxy_messages(request: Request) -> StreamingResponse | JSONResponse:
 
             if upstream_resp.status_code != 200:
                 error_body = await upstream_resp.aread()
+                try:
+                    error_json = json.loads(error_body)
+                except json.JSONDecodeError:
+                    error_json = {"error": error_body.decode(errors="replace")}
                 return JSONResponse(
-                    json.loads(error_body),
+                    error_json,
                     status_code=upstream_resp.status_code,
                 )
 
@@ -109,17 +132,24 @@ async def proxy_messages(request: Request) -> StreamingResponse | JSONResponse:
                 upstream_url,
                 headers=headers,
                 content=json.dumps(redacted_body).encode(),
-                timeout=300.0,
             )
 
             if upstream_resp.status_code != 200:
+                try:
+                    error_json = upstream_resp.json()
+                except (json.JSONDecodeError, ValueError):
+                    error_json = {"error": upstream_resp.text}
                 return JSONResponse(
-                    upstream_resp.json(),
+                    error_json,
                     status_code=upstream_resp.status_code,
                 )
 
             response_body = upstream_resp.json()
-            unredacted_body = unredact_response_body(response_body, unredactor)
+            try:
+                unredacted_body = unredact_response_body(response_body, unredactor)
+            except Exception:
+                logger.exception("Un-redaction failed on response — passing through as-is")
+                unredacted_body = response_body
             return JSONResponse(unredacted_body)
 
 
@@ -133,13 +163,13 @@ async def proxy_count_tokens(request: Request) -> JSONResponse:
 
     body = await request.body()
     upstream_url = _get_upstream_url() + "/v1/messages/count_tokens"
+    timeout = _get_timeout()
 
-    async with httpx.AsyncClient() as client:
+    async with httpx.AsyncClient(timeout=timeout) as client:
         upstream_resp = await client.post(
             upstream_url,
             headers=headers,
             content=body,
-            timeout=60.0,
         )
         return JSONResponse(
             upstream_resp.json(),

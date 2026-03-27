@@ -147,6 +147,7 @@ async def unredact_stream(
     """Process SSE stream from Anthropic, un-redact text content, yield events."""
     text_buffer = TextDeltaBuffer(unredactor)
     tool_buffer = ToolUseBuffer()
+    event_type = "message"  # Default if data arrives before an event line
 
     async for line in upstream_response.aiter_lines():
         if not line:
@@ -154,19 +155,19 @@ async def unredact_stream(
 
         # SSE format: lines are either "event: <type>" or "data: <json>"
         if line.startswith("event: "):
-            event_type = line[len("event: ") :]
+            event_type = line[len("event: "):]
             continue  # Will be emitted with its data line
 
         if not line.startswith("data: "):
             continue
 
-        raw_data = line[len("data: ") :]
+        raw_data = line[len("data: "):]
 
         try:
             data = json.loads(raw_data)
         except json.JSONDecodeError:
             # Not JSON (e.g., "[DONE]") — pass through.
-            yield f"event: {event_type}\ndata: {raw_data}\n\n".encode()  # noqa: F821
+            yield f"event: {event_type}\ndata: {raw_data}\n\n".encode()
             continue
 
         msg_type = data.get("type", "")
@@ -178,17 +179,21 @@ async def unredact_stream(
 
             if delta_type == "text_delta":
                 original_text = delta.get("text", "")
+                if not original_text:
+                    # Empty text delta — pass through as-is
+                    yield _format_sse(event_type, json.dumps(data))
+                    continue
                 emitted = text_buffer.feed(original_text)
                 if emitted:
                     delta["text"] = emitted
                     data["delta"] = delta
-                    yield _format_sse(event_type, json.dumps(data))  # noqa: F821
+                    yield _format_sse(event_type, json.dumps(data))
                 continue
 
             if delta_type == "input_json_delta":
                 tool_buffer.feed(index, delta.get("partial_json", ""))
                 # Pass through the original delta — we'll fix up at block stop.
-                yield _format_sse(event_type, json.dumps(data))  # noqa: F821
+                yield _format_sse(event_type, json.dumps(data))
                 continue
 
         if msg_type == "content_block_stop":
@@ -211,4 +216,4 @@ async def unredact_stream(
 
         # Pass through the event as-is (message_start, message_delta,
         # message_stop, ping, content_block_start, content_block_stop, etc.)
-        yield _format_sse(event_type, json.dumps(data))  # noqa: F821
+        yield _format_sse(event_type, json.dumps(data))

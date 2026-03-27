@@ -10,3 +10,5 @@ build/
 .mypy_cache/
 .ruff_cache/
 .pytest_cache/
+vscode-extension/node_modules/
+vscode-extension/out/

@@ -2,6 +2,9 @@
 
 from __future__ import annotations
 
+import logging
+import sys
+
 from .mappings import MappingCache
 from .models import Match, ScanResult
 from .scanner import Scanner
@@ -10,6 +13,11 @@ from .models import Rule
 from rdx.detect.context import scan_context
 from rdx.detect.entropy import scan_entropy
 from rdx.detect.presidio import scan_presidio
+
+logger = logging.getLogger(__name__)
+
+# Threshold above which we log a performance warning (1 MB).
+_LARGE_TEXT_THRESHOLD = 1_000_000
 
 
 class Redactor:
@@ -38,6 +46,11 @@ class Redactor:
         tool_name: str | None = None,
     ) -> ScanResult:
         """Scan *text* and apply redactions / blocks / warns."""
+        if len(text) > _LARGE_TEXT_THRESHOLD:
+            size_mb = len(text) / 1_000_000
+            logger.warning(
+                "Redacting large text (%.1f MB) — this may be slow", size_mb
+            )
         matches = self.scanner.scan(text, target, tool_name)
 
         if self.use_context:

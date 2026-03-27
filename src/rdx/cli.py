@@ -410,6 +410,41 @@ def cmd_check(args: argparse.Namespace) -> int:
     return 0
 
 
+# ── cat ───────────────────────────────────────────────────────────
+
+
+def cmd_cat(args: argparse.Namespace) -> int:
+    """Print file(s) with redactions applied — like cat but redacted."""
+    rules = _build_rules()
+    cache = MappingCache()
+    redactor = Redactor(rules, cache)
+
+    for file_path in args.files:
+        p = Path(file_path)
+        if not p.exists():
+            print(f"rdx cat: {file_path}: No such file", file=sys.stderr)
+            continue
+        try:
+            text = p.read_text()
+        except (OSError, UnicodeDecodeError) as e:
+            print(f"rdx cat: {file_path}: {e}", file=sys.stderr)
+            continue
+
+        result = redactor.redact(text, target="both")
+        output = result.redacted_text if result.redacted_text else text
+
+        if args.number:
+            for i, line in enumerate(output.splitlines(), 1):
+                print(f"{i:6d}\t{line}")
+        else:
+            print(output, end="")
+
+        if result.matches and not args.quiet:
+            print(f"\n# rdx: {len(result.matches)} redaction(s) applied", file=sys.stderr)
+
+    return 0
+
+
 # ── audit ──────────────────────────────────────────────────────────
 
 
@@ -446,6 +481,31 @@ def cmd_audit(args: argparse.Namespace) -> int:
         detail = f" {entry.detail}" if entry.detail else ""
         print(f"  {ts} {entry.event:10s} {entry.direction:10s}{tool}{rules}{count}{detail}")
     return 0
+
+
+# ── discover ──────────────────────────────────────────────────────
+
+
+def cmd_discover(args: argparse.Namespace) -> int:
+    """Scan a directory for secrets and suggest redaction rules."""
+    from rdx.discover import discover, interactive_add, print_report
+
+    directory = Path(args.directory)
+    if not directory.is_dir():
+        print(f"Not a directory: {directory}", file=sys.stderr)
+        return 1
+
+    report = discover(
+        directory,
+        use_presidio=args.presidio,
+        quiet=args.quiet,
+    )
+    print_report(report, quiet=args.quiet)
+
+    if args.add and report.findings:
+        return interactive_add(report, directory)
+
+    return 1 if report.findings else 0
 
 
 # ── shadow ─────────────────────────────────────────────────────────
@@ -578,12 +638,27 @@ def build_parser() -> argparse.ArgumentParser:
     check_p.add_argument("--json", action="store_true", help="JSON output for tooling")
     check_p.set_defaults(func=cmd_check)
 
+    # cat
+    cat_p = subparsers.add_parser("cat", help="Print file with redactions applied")
+    cat_p.add_argument("files", nargs="+", help="Files to print")
+    cat_p.add_argument("-n", "--number", action="store_true", help="Number output lines")
+    cat_p.add_argument("-q", "--quiet", action="store_true", help="Suppress redaction count")
+    cat_p.set_defaults(func=cmd_cat)
+
     # audit
     audit_p = subparsers.add_parser("audit", help="View audit log")
     audit_p.add_argument("--stats", action="store_true", help="Show aggregate stats")
     audit_p.add_argument("--clear", action="store_true", help="Clear the audit log")
     audit_p.add_argument("--tail", type=int, default=50, help="Number of recent entries (default 50)")
     audit_p.set_defaults(func=cmd_audit)
+
+    # discover
+    discover_p = subparsers.add_parser("discover", help="Scan directory for secrets and suggest rules")
+    discover_p.add_argument("directory", nargs="?", default=".", help="Directory to scan (default: .)")
+    discover_p.add_argument("--add", action="store_true", help="Interactively add findings as rules")
+    discover_p.add_argument("--presidio", action="store_true", help="Enable Presidio NLP detection")
+    discover_p.add_argument("-q", "--quiet", action="store_true", help="Quiet mode")
+    discover_p.set_defaults(func=cmd_discover)
 
     # shadow
     shadow_p = subparsers.add_parser("shadow", help="Manage shadow files")
@@ -600,7 +675,7 @@ def main(argv: list[str] | None = None) -> int:
     parser = build_parser()
 
     # Catch-all: if first arg is not a known subcommand, treat as command to run
-    known = {"proxy", "setup", "init", "hook", "rewrite", "rules", "secret", "check", "audit", "shadow"}
+    known = {"proxy", "setup", "init", "hook", "rewrite", "rules", "secret", "check", "cat", "audit", "discover", "shadow"}
     if argv is None:
         argv = sys.argv[1:]
 
