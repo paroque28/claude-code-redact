@@ -37,6 +37,8 @@ from rdx.detect.patterns import get_builtin_rules
 
 UPSTREAM = os.environ.get("RDX_UPSTREAM_URL", "https://api.anthropic.com")
 PORT = int(os.environ.get("RDX_PORT", "8642"))
+VERBOSE = os.environ.get("RDX_VERBOSE", "0") == "1"
+SHOW_VALUES = os.environ.get("RDX_SHOW_VALUES", "0") == "1"
 
 # Shared state
 cache = MappingCache()
@@ -92,6 +94,18 @@ async def proxy_messages(request: Request) -> Response:
     stats = cache.stats()
     print(f"\n{'='*60}", file=sys.stderr)
     print(f"[rdx] → Outgoing request | {stats['mappings']} active mappings", file=sys.stderr)
+
+    if VERBOSE:
+        # Show all redactions applied in this request
+        all_redactions = cache.get_all_redactions()
+        new_in_request = [r for r in all_redactions]
+        if new_in_request:
+            print(f"[rdx]   Redactions applied:", file=sys.stderr)
+            for r in new_in_request:
+                if SHOW_VALUES:
+                    print(f"[rdx]     {r.category:8s} {r.original[:40]:40s} → {r.replacement[:30]}", file=sys.stderr)
+                else:
+                    print(f"[rdx]     {r.category:8s} [{r.rule_id}] ({len(r.original)} chars) → {r.replacement[:30]}", file=sys.stderr)
 
     # Forward headers
     headers = {}
@@ -167,7 +181,12 @@ async def proxy_messages(request: Request) -> Response:
                         else:
                             yield f"{line}\n"
 
-        print(f"[rdx] ← Streaming response", file=sys.stderr)
+        if VERBOSE:
+            reverse = cache.get_reverse_map()
+            unredact_count = sum(1 for r in reverse if any(r in str(v) for v in [r]))
+            print(f"[rdx] ← Streaming response | {len(reverse)} values available for un-redaction", file=sys.stderr)
+        else:
+            print(f"[rdx] ← Streaming response", file=sys.stderr)
         return StreamingResponse(
             stream_generator(),
             media_type="text/event-stream",
@@ -229,6 +248,8 @@ if __name__ == "__main__":
     rules = load_rules() + get_builtin_rules()
     user_rules = [r for r in rules if r.replacement]
     print(f"[rdx] {len(rules)} rules ({len(user_rules)} format-preserving)", file=sys.stderr)
+    print(f"[rdx] Verbose: {'ON' if VERBOSE else 'OFF (set RDX_VERBOSE=1)'}", file=sys.stderr)
+    print(f"[rdx] Show values: {'ON (UNSAFE)' if SHOW_VALUES else 'OFF (set RDX_SHOW_VALUES=1)'}", file=sys.stderr)
     print(f"[rdx]", file=sys.stderr)
     print(f"[rdx] To use: ANTHROPIC_BASE_URL=http://localhost:{PORT} claude", file=sys.stderr)
     print(f"{'='*60}", file=sys.stderr)
