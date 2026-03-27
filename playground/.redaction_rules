@@ -1,0 +1,98 @@
+rules:
+  # People
+  - id: lead-dev
+    pattern: 'Marco Vitale'
+    replacement: 'Peter Smith'
+    category: NAME
+    description: Lead developer name
+
+  - id: lead-first
+    pattern: 'Marco'
+    replacement: 'Peter'
+    category: NAME
+
+  - id: cto
+    pattern: 'Sarah Chen'
+    replacement: 'Jane Doe'
+    category: NAME
+
+  - id: cto-first
+    pattern: 'Sarah'
+    replacement: 'Jane'
+    category: NAME
+
+  # Company
+  - id: company
+    pattern: 'AcmeCorp'
+    replacement: 'WidgetInc'
+    category: PROJECT
+    is_regex: false
+
+  - id: company-lower
+    pattern: 'acmecorp'
+    replacement: 'widgetinc'
+    category: PROJECT
+    is_regex: false
+
+  # Project
+  - id: project-name
+    pattern: 'ProjectPhoenix'
+    replacement: 'ProjectEagle'
+    category: PROJECT
+    is_regex: false
+
+  # Domains
+  - id: internal-domain
+    pattern: 'acmecorp\.internal'
+    replacement: 'widgetinc.test'
+    category: HOST
+
+  - id: email-domain
+    pattern: 'acmecorp\.com'
+    replacement: 'widgetinc.com'
+    category: HOST
+
+  # Specific emails
+  - id: lead-email
+    pattern: 'marco\.vitale@acmecorp\.com'
+    replacement: 'peter.smith@widgetinc.com'
+    category: EMAIL
+
+  - id: lead-email-short
+    pattern: 'marco@acmecorp\.com'
+    replacement: 'peter@widgetinc.com'
+    category: EMAIL
+
+  - id: cto-email
+    pattern: 'sarah\.chen@acmecorp\.com'
+    replacement: 'jane.doe@widgetinc.com'
+    category: EMAIL
+
+  # Custom API tokens (company-specific prefixes)
+  - id: acme-api-token
+    pattern: 'acmetk-[a-zA-Z0-9\-]{20,}'
+    category: KEY
+    description: AcmeCorp API token
+
+  - id: acme-deploy-key
+    pattern: 'acme-deploy-[a-zA-Z0-9\-]{20,}'
+    category: KEY
+    description: AcmeCorp deployment key
+
+  - id: acme-short-token
+    pattern: 'acme-[a-zA-Z0-9]{16,}'
+    category: KEY
+    description: AcmeCorp short-form token
+
+  # Company-prefixed identifiers (tickets, projects, repos)
+  - id: acme-ticket
+    pattern: 'ACME-\d{3,}'
+    replacement: 'WIDG-0000'
+    category: PROJECT
+    description: AcmeCorp ticket/issue IDs
+
+  - id: phoenix-ticket
+    pattern: 'PHOENIX-\d{3,}'
+    replacement: 'EAGLE-0000'
+    category: PROJECT
+    description: ProjectPhoenix ticket IDs

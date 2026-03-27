@@ -1,0 +1,33 @@
+{
+  "model": "claude-sonnet-4-20250514",
+  "max_tokens": 8096,
+  "system": "You are helping with the AcmeCorp internal tooling.",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Check why the deployment script is failing"
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_06PQR",
+          "name": "Read",
+          "input": {"file_path": "/project/deploy.sh"}
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_06PQR",
+          "content": "#!/bin/bash\n# AcmeCorp deployment script for ProjectPhoenix\n# Author: Marco Vitale\n\nACME_API_TOKEN=\"acmetk-prod-x7k9m2nQ4rT6vX8zA1cE3gI5kM7oQ9s\"\nACME_DEPLOY_KEY=\"acme-deploy-f8h2j4l6n0p2r4t6v8x0z2b4d6f8h0j\"\nGITLAB_TOKEN=\"glpat-xxxx-yyyy-zzzz-aaaa-bbbb\"\n\necho \"Deploying ProjectPhoenix to production...\"\ncurl -X POST https://deploy.acmecorp.internal/api/v2/deploy \\\n  -H \"Authorization: Bearer $ACME_API_TOKEN\" \\\n  -H \"X-Deploy-Key: $ACME_DEPLOY_KEY\" \\\n  -d '{\"project\": \"ProjectPhoenix\", \"env\": \"production\", \"deployer\": \"marco.vitale@acmecorp.com\"}'\n\necho \"Notifying team...\"\ncurl -X POST https://notify.acmecorp.internal/api/send \\\n  -d '{\"to\": \"phoenix-team@acmecorp.com\", \"message\": \"ProjectPhoenix deployed by Marco Vitale\"}'"
+        }
+      ]
+    }
+  ],
+  "stream": true
+}

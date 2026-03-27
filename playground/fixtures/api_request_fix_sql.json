@@ -1,0 +1,33 @@
+{
+  "model": "claude-sonnet-4-20250514",
+  "max_tokens": 8096,
+  "system": "You are an expert software engineer helping with the ProjectPhoenix codebase at AcmeCorp.",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Fix the SQL injection vulnerability in user_service.py (PHOENIX-1234). Marco Vitale flagged this."
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_03GHI",
+          "name": "Read",
+          "input": {"file_path": "/project/src/user_service.py"}
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_03GHI",
+          "content": "\"\"\"User management service for ProjectPhoenix.\n\nAuthor: Marco Vitale\nTeam: AcmeCorp Platform Engineering\n\"\"\"\n\ndef get_user_by_email(db_conn, email: str):\n    query = f\"SELECT * FROM users WHERE email = '{email}'\"  # SQL INJECTION!\n    result = db_conn.execute(query)\n    ...\n\ndef create_admin_user(db_conn):\n    admin = User(\n        id=0,\n        email=\"marco.vitale@acmecorp.com\",\n        name=\"Marco Vitale\",\n        role=\"admin\",\n    )\n    ..."
+        }
+      ]
+    }
+  ],
+  "stream": true
+}

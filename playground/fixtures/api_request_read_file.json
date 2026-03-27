@@ -1,0 +1,33 @@
+{
+  "model": "claude-sonnet-4-20250514",
+  "max_tokens": 8096,
+  "system": "You are an expert software engineer helping with the ProjectPhoenix codebase at AcmeCorp.",
+  "messages": [
+    {
+      "role": "user",
+      "content": "Read config.py and tell me if there are any hardcoded secrets"
+    },
+    {
+      "role": "assistant",
+      "content": [
+        {
+          "type": "tool_use",
+          "id": "toolu_01ABC",
+          "name": "Read",
+          "input": {"file_path": "/project/src/config.py"}
+        }
+      ]
+    },
+    {
+      "role": "user",
+      "content": [
+        {
+          "type": "tool_result",
+          "tool_use_id": "toolu_01ABC",
+          "content": "\"\"\"AcmeCorp ProjectPhoenix — Application Configuration\n\nMaintained by Marco Vitale <marco.vitale@acmecorp.com>\nLast reviewed by Sarah Chen on 2026-03-15\n\"\"\"\n\nimport os\n\nDATABASE_URL = os.getenv(\n    \"DATABASE_URL\",\n    \"postgres://phoenix_admin:Kj8mN2pQ4rT6vX@db.acmecorp.internal:5432/phoenix_prod\"\n)\n\nOPENAI_API_KEY = os.getenv(\"OPENAI_API_KEY\", \"sk-proj-dummykey-for-local-dev-only-replace-in-prod-000000000000\")\nSTRIPE_SECRET_KEY = os.getenv(\"STRIPE_SECRET_KEY\", \"sk_live_51HG7dKLMnOpQrStUvWxYz\")\n\nAUTH_SERVICE_URL = \"https://auth.acmecorp.internal/v2\"\nESCALATION_CONTACT = \"Marco Vitale <marco@acmecorp.com>\""
+        }
+      ]
+    }
+  ],
+  "stream": true
+}
